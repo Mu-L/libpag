@@ -14,6 +14,7 @@
 //  either express or implied. see the license for the specific language governing permissions
 //  and limitations under the license.
 //
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "HardwareDecoder.h"
 #include <multimedia/player_framework/native_avbuffer.h>
@@ -59,11 +60,12 @@ void OH_AVCodecOnNewOutputBuffer(OH_AVCodec*, uint32_t index, OH_AVBuffer* buffe
 HardwareDecoder::HardwareDecoder(const VideoFormat& format) {
   videoFormat = format;
   isValid = initDecoder(codecCategory);
-  if (!isValid) {
-    codecCategory = SOFTWARE;
-    LOGI("Fall back to the software decoder!");
-    isValid = initDecoder(codecCategory);
-  }
+  // We currently have some unresolved issues with enabling software decoding, so we should disable it for now.
+  //   if (!isValid) {
+  //     codecCategory = SOFTWARE;
+  //     LOGI("Fall back to the software decoder!");
+  //     isValid = initDecoder(codecCategory);
+  //   }
 }
 
 HardwareDecoder::~HardwareDecoder() {
@@ -182,7 +184,7 @@ DecodingResult HardwareDecoder::onDecodeFrame() {
     pendingFrames.remove(codecBufferInfo.attr.pts);
   } else {
     lock.unlock();
-    return DecodingResult::TryAgainLater;
+    return DecodingResult::Success;
   }
   int ret = OH_VideoDecoder_FreeOutputBuffer(videoCodec, codecBufferInfo.bufferIndex);
   if (ret != AV_ERR_OK) {
@@ -218,7 +220,10 @@ bool HardwareDecoder::start() {
 }
 
 int64_t HardwareDecoder::presentationTime() {
-  return codecBufferInfo.attr.pts;
+  if (codecBufferInfo.buffer) {
+    return codecBufferInfo.attr.pts;
+  }
+  return -1;
 }
 
 std::shared_ptr<tgfx::ImageBuffer> HardwareDecoder::onRenderFrame() {
